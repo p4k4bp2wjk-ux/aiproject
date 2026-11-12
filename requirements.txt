@@ -4,5 +4,5 @@ folium
 streamlit-folium
 pandas
 plotly
-scikit-learn==1.5.2
-numpy==2.1.3
+scikit-learn
+numpy
