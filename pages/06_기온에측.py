@@ -31,7 +31,7 @@ st.write(
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-CSV_PATH = BASE_DIR / "temperature(1).csv"
+CSV_PATH = BASE_DIR / "temperature.csv"
 
 if not CSV_PATH.exists():
     st.error(f"CSV 파일을 찾을 수 없습니다: {CSV_PATH}")
