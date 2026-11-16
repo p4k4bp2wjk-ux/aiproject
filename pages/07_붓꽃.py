@@ -8,28 +8,36 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
-# ---------------------------------
+
+# =========================================
 # 1. 페이지 설정
-# ---------------------------------
+# =========================================
+
 st.set_page_config(
-    page_title="붓꽃 품종 예측 🌸",
+    page_title="붓꽃 품종 예측",
     page_icon="🌸",
     layout="wide"
 )
 
-st.title("🌸 붓꽃 품종 예측 프로그램")
-st.write("꽃잎의 길이와 너비를 입력하면 붓꽃의 품종을 예측해 줘!")
+st.title("🌸 붓꽃 품종 예측 머신러닝")
+st.write(
+    "꽃의 길이와 너비를 입력하고 "
+    "3가지 머신러닝 알고리즘으로 품종을 예측해 보자!"
+)
 
 st.divider()
 
-# ---------------------------------
-# 2. CSV 파일 불러오기
-# ---------------------------------
+
+# =========================================
+# 2. 데이터 불러오기
+# =========================================
+
 base_dir = Path(__file__).resolve().parent
 
-# 현재 폴더 또는 상위 폴더에서 CSV 찾기
 file_paths = [
     base_dir / "Iris.csv",
     base_dir.parent / "Iris.csv"
@@ -49,210 +57,439 @@ try:
 except UnicodeDecodeError:
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
 
-# 필요한 열 확인
-required_columns = ["꽃잎 길이", "꽃잎 너비", "품종"]
 
-if not all(col in df.columns for col in required_columns):
+features = [
+    "꽃받침 길이",
+    "꽃받침 너비",
+    "꽃잎 길이",
+    "꽃잎 너비"
+]
+
+target = "품종"
+
+if not all(col in df.columns for col in features + [target]):
     st.error("CSV 파일의 열 이름을 확인해 주세요.")
     st.stop()
 
-# ---------------------------------
-# 3. 학습 데이터 준비
-# ---------------------------------
-X = df[["꽃잎 길이", "꽃잎 너비"]]
-y = df["품종"]
+df = df.dropna(subset=features + [target]).copy()
 
-# 학습용 데이터와 테스트용 데이터 분리
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42,
-    stratify=y
-)
 
-# KNN 모델 생성
-model = Pipeline([
-    ("scaler", StandardScaler()),
-    ("knn", KNeighborsClassifier(n_neighbors=5))
-])
+# =========================================
+# 3. 알고리즘 설정
+# =========================================
 
-# 모델 학습 및 정확도 확인
-model.fit(X_train, y_train)
+algorithm_names = [
+    "KNN",
+    "결정 트리",
+    "랜덤 포레스트"
+]
 
-y_pred = model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
+principles = {
+    "KNN": """
+### 🔍 KNN (K-최근접 이웃)
 
-# 전체 데이터로 최종 모델 학습
-model.fit(X, y)
+KNN은 새로운 데이터와 가장 가까운 기존 데이터를
+찾아서 품종을 예측하는 알고리즘이야.
 
-# ---------------------------------
-# 4. 알고리즘 설명
-# ---------------------------------
-st.subheader("🤖 사용 알고리즘")
+1. 사용자가 꽃의 길이와 너비를 입력해.
+2. 기존 붓꽃 데이터와의 거리를 계산해.
+3. 가장 가까운 5개의 데이터를 찾아.
+4. 가장 많이 등장한 품종을 예측 결과로 선택해.
 
-st.info("""
-**KNN (K-최근접 이웃 분류 알고리즘)**
+**핵심:** 주변에 있는 데이터의 의견을 모아서 결정하는 방법이야.
+""",
 
-입력한 꽃잎의 길이와 너비를 기존 데이터와 비교해
-가장 가까운 5개의 데이터를 찾고,
-그중 가장 많은 품종을 예측 결과로 선택해.
-""")
+    "결정 트리": """
+### 🌳 결정 트리 (Decision Tree)
 
-st.metric(
-    "모델 테스트 정확도",
-    f"{accuracy * 100:.1f}%"
-)
+결정 트리는 질문을 반복하면서 데이터를 분류하는 알고리즘이야.
 
-st.caption("테스트 데이터 20%를 이용한 정확도이며, 데이터 분할에 따라 달라질 수 있어.")
+1. 꽃의 길이와 너비를 확인해.
+2. 품종을 가장 잘 구분할 수 있는 조건을 찾아.
+3. 조건에 따라 데이터를 여러 그룹으로 나눠.
+4. 마지막에 도달한 그룹을 바탕으로 품종을 예측해.
 
-st.divider()
+**핵심:** 여러 가지 질문을 따라가면서 정답을 찾아가는 방법이야.
+""",
 
-# ---------------------------------
-# 5. 사용자 입력
-# ---------------------------------
-st.subheader("✏️ 꽃잎 크기 입력하기")
+    "랜덤 포레스트": """
+### 🌲 랜덤 포레스트 (Random Forest)
 
-# 실제 데이터의 최솟값과 최댓값
-length_min = float(df["꽃잎 길이"].min())
-length_max = float(df["꽃잎 길이"].max())
+랜덤 포레스트는 여러 개의 결정 트리를 사용하는 알고리즘이야.
 
-width_min = float(df["꽃잎 너비"].min())
-width_max = float(df["꽃잎 너비"].max())
+1. 여러 개의 학습 데이터를 무작위로 구성해.
+2. 각각의 데이터로 결정 트리를 만들어.
+3. 여러 트리가 각각 품종을 예측해.
+4. 가장 많은 트리가 선택한 품종을 최종 결과로 결정해.
 
-st.write("다음 범위 안에서 꽃잎 크기를 입력해 줘!")
+**핵심:** 여러 나무의 예측 결과를 모아서 결정하는 방법이야.
+"""
+}
 
-col1, col2 = st.columns(2)
 
-with col1:
-    petal_length = st.number_input(
-        "🌷 꽃잎 길이 (cm)",
-        min_value=length_min,
-        max_value=length_max,
-        value=4.5,
-        step=0.1,
-        format="%.1f"
+def make_model(name):
+
+    if name == "KNN":
+        return Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", KNeighborsClassifier(n_neighbors=5))
+        ])
+
+    elif name == "결정 트리":
+        return DecisionTreeClassifier(
+            random_state=42
+        )
+
+    elif name == "랜덤 포레스트":
+        return RandomForestClassifier(
+            n_estimators=100,
+            random_state=42
+        )
+
+
+# =========================================
+# 4. 공통 예측 함수
+# =========================================
+
+def prediction_app(tab_name, selected_features, algorithm_key):
+
+    st.subheader("🤖 예측 알고리즘 선택")
+
+    algorithm = st.selectbox(
+        "사용할 분류 알고리즘을 선택해 줘!",
+        algorithm_names,
+        key=algorithm_key
     )
 
     st.caption(
-        f"입력 가능 범위: {length_min} ~ {length_max} cm"
+        "알고리즘에 따라 예측 결과와 정확도가 달라질 수 있어."
     )
 
-with col2:
-    petal_width = st.number_input(
-        "🌷 꽃잎 너비 (cm)",
-        min_value=width_min,
-        max_value=width_max,
-        value=1.5,
-        step=0.1,
-        format="%.1f"
-    )
+    # 입력창
+    st.subheader("✏️ 꽃의 크기 입력하기")
 
-    st.caption(
-        f"입력 가능 범위: {width_min} ~ {width_max} cm"
-    )
+    col1, col2 = st.columns(2)
 
-# ---------------------------------
-# 6. 품종 예측
-# ---------------------------------
-st.divider()
+    input_values = []
 
-if st.button("🔍 붓꽃 품종 예측하기", use_container_width=True):
+    for i, feature in enumerate(selected_features):
+
+        minimum = float(df[feature].min())
+        maximum = float(df[feature].max())
+        default = float(df[feature].median())
+
+        with (col1 if i == 0 else col2):
+
+            value = st.number_input(
+                f"{feature} (cm)",
+                min_value=minimum,
+                max_value=maximum,
+                value=default,
+                step=0.1,
+                format="%.1f",
+                key=f"{tab_name}_{feature}"
+            )
+
+            st.caption(
+                f"입력 가능 범위: {minimum} ~ {maximum} cm"
+            )
+
+            input_values.append(value)
 
     input_data = pd.DataFrame(
-        [[petal_length, petal_width]],
-        columns=["꽃잎 길이", "꽃잎 너비"]
+        [input_values],
+        columns=selected_features
     )
 
-    prediction = model.predict(input_data)[0]
+    # =====================================
+    # 5. 학습 및 정확도 비교
+    # =====================================
 
-    st.success("🎉 붓꽃 품종 예측이 완료되었어!")
+    X = df[selected_features]
+    y = df[target]
 
-    st.markdown("### 🌸 예측 결과")
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.2,
+        random_state=42,
+        stratify=y
+    )
 
-    if prediction == "Iris-setosa":
-        st.subheader("🌼 Iris-setosa")
-        st.write("예측 품종: 세토사")
+    accuracies = {}
+    trained_models = {}
 
-    elif prediction == "Iris-versicolor":
-        st.subheader("🌺 Iris-versicolor")
-        st.write("예측 품종: 버시컬러")
+    for name in algorithm_names:
 
-    elif prediction == "Iris-virginica":
-        st.subheader("🌷 Iris-virginica")
-        st.write("예측 품종: 버지니카")
+        temp_model = make_model(name)
 
-    else:
-        st.subheader(prediction)
+        temp_model.fit(X_train, y_train)
 
-    st.write(f"입력한 꽃잎 길이: {petal_length} cm")
-    st.write(f"입력한 꽃잎 너비: {petal_width} cm")
+        test_prediction = temp_model.predict(X_test)
 
-# ---------------------------------
-# 7. 산점도 그래프
-# ---------------------------------
+        accuracies[name] = accuracy_score(
+            y_test,
+            test_prediction
+        ) * 100
+
+        trained_models[name] = temp_model
+
+    st.divider()
+
+    # =====================================
+    # 6. 예측 결과
+    # =====================================
+
+    st.subheader("🌸 붓꽃 품종 예측 결과")
+
+    final_model = make_model(algorithm)
+
+    final_model.fit(X, y)
+
+    prediction = final_model.predict(input_data)[0]
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.success(f"예측 품종: {prediction}")
+
+        if prediction == "Iris-setosa":
+            st.markdown("### 🌼 Iris-setosa")
+            st.write("세토사 품종으로 예측했어!")
+
+        elif prediction == "Iris-versicolor":
+            st.markdown("### 🌺 Iris-versicolor")
+            st.write("버시컬러 품종으로 예측했어!")
+
+        elif prediction == "Iris-virginica":
+            st.markdown("### 🌷 Iris-virginica")
+            st.write("버지니카 품종으로 예측했어!")
+
+    with col2:
+        st.metric(
+            "선택한 알고리즘의 테스트 정확도",
+            f"{accuracies[algorithm]:.1f}%"
+        )
+
+    # 알고리즘별 정확도 비교
+    st.subheader("📊 알고리즘별 정확도 비교")
+
+    accuracy_df = pd.DataFrame({
+        "알고리즘": list(accuracies.keys()),
+        "정확도 (%)": list(accuracies.values())
+    })
+
+    st.dataframe(
+        accuracy_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    accuracy_fig = px.bar(
+        accuracy_df,
+        x="알고리즘",
+        y="정확도 (%)",
+        color="알고리즘",
+        text="정확도 (%)",
+        title="분류 알고리즘별 테스트 정확도"
+    )
+
+    accuracy_fig.update_traces(
+        texttemplate="%{y:.1f}%",
+        textposition="outside"
+    )
+
+    accuracy_fig.update_layout(
+        yaxis_range=[0, 110],
+        showlegend=False
+    )
+
+    st.plotly_chart(
+        accuracy_fig,
+        use_container_width=True
+    )
+
+    # =====================================
+    # 7. 산점도
+    # =====================================
+
+    st.divider()
+
+    st.subheader("📍 붓꽃 데이터 산점도")
+
+    st.write(
+        f"가로축: {selected_features[0]} / "
+        f"세로축: {selected_features[1]}"
+    )
+
+    fig = px.scatter(
+        df,
+        x=selected_features[0],
+        y=selected_features[1],
+        color=target,
+        hover_data=selected_features,
+        title="붓꽃 품종별 데이터 분포"
+    )
+
+    # 사용자 입력값: 하늘색 별
+    fig.add_scatter(
+        x=[input_values[0]],
+        y=[input_values[1]],
+        mode="markers",
+        name="내가 입력한 꽃",
+        marker=dict(
+            symbol="star",
+            size=23,
+            color="skyblue",
+            line=dict(
+                color="black",
+                width=1
+            )
+        )
+    )
+
+    fig.update_layout(
+        height=550,
+        xaxis_title=f"{selected_features[0]} (cm)",
+        yaxis_title=f"{selected_features[1]} (cm)",
+        legend_title="붓꽃 품종"
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+    st.caption(
+        "⭐ 하늘색 별은 사용자가 입력한 꽃의 위치야."
+    )
+
+    # =====================================
+    # 8. 알고리즘 작동 원리
+    # =====================================
+
+    st.divider()
+
+    st.subheader("💡 선택한 알고리즘의 작동 원리")
+
+    st.markdown(principles[algorithm])
+
+    with st.expander("📚 다른 알고리즘의 작동 원리도 알아보기"):
+
+        for name in algorithm_names:
+            st.markdown(principles[name])
+            st.divider()
+
+
+# =========================================
+# 9. 탭 구성
+# =========================================
+
+tab1, tab2 = st.tabs([
+    "🌷 꽃잎 길이와 너비로 예측",
+    "🌿 원하는 속성 2개로 예측"
+])
+
+
+# =========================================
+# 탭 1
+# =========================================
+
+with tab1:
+
+    st.header("🌷 꽃잎 크기로 품종 예측하기")
+
+    st.write(
+        "기존에 사용했던 꽃잎 길이와 꽃잎 너비를 "
+        "이용해서 붓꽃의 품종을 예측해 보자!"
+    )
+
+    prediction_app(
+        tab_name="petal",
+        selected_features=[
+            "꽃잎 길이",
+            "꽃잎 너비"
+        ],
+        algorithm_key="algorithm_petal"
+    )
+
+
+# =========================================
+# 탭 2
+# =========================================
+
+with tab2:
+
+    st.header("🌿 원하는 속성 2개 선택하기")
+
+    st.write(
+        "이번에는 꽃받침과 꽃잎의 네 가지 속성 중 "
+        "원하는 두 가지를 골라서 품종을 예측해 보자!"
+    )
+
+    st.info(
+        "서로 다른 두 가지 속성을 선택해야 해. "
+        "선택한 속성에 따라 입력 범위와 그래프의 축도 바뀌어."
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        feature_x = st.selectbox(
+            "📌 첫 번째 속성 선택",
+            features,
+            index=0,
+            key="feature_x"
+        )
+
+    with col2:
+
+        available_features = [
+            f for f in features if f != feature_x
+        ]
+
+        feature_y = st.selectbox(
+            "📌 두 번째 속성 선택",
+            available_features,
+            index=0,
+            key="feature_y"
+        )
+
+    st.success(
+        f"선택한 속성: {feature_x} + {feature_y}"
+    )
+
+    prediction_app(
+        tab_name="custom",
+        selected_features=[
+            feature_x,
+            feature_y
+        ],
+        algorithm_key="algorithm_custom"
+    )
+
+
+# =========================================
+# 10. 데이터 안내
+# =========================================
+
 st.divider()
 
-st.subheader("📊 붓꽃 데이터 분포 그래프")
+with st.expander("📖 원본 Iris 데이터 확인"):
 
-st.write("""
-가로축은 꽃잎 길이, 세로축은 꽃잎 너비야.
-기존 붓꽃 데이터는 품종별로 표시하고,
-내가 입력한 꽃은 하늘색 별(★)로 표시해.
-""")
-
-fig = px.scatter(
-    df,
-    x="꽃잎 길이",
-    y="꽃잎 너비",
-    color="품종",
-    hover_data=["꽃잎 길이", "꽃잎 너비"],
-    title="붓꽃 품종별 꽃잎 크기 분포",
-    labels={
-        "꽃잎 길이": "꽃잎 길이 (cm)",
-        "꽃잎 너비": "꽃잎 너비 (cm)"
-    }
-)
-
-# 사용자가 입력한 값 표시
-fig.add_scatter(
-    x=[petal_length],
-    y=[petal_width],
-    mode="markers",
-    name="내가 입력한 꽃",
-    marker=dict(
-        symbol="star",
-        size=22,
-        color="skyblue",
-        line=dict(color="black", width=1)
+    st.dataframe(
+        df,
+        use_container_width=True
     )
-)
-
-fig.update_layout(
-    height=550,
-    xaxis_title="꽃잎 길이 (cm)",
-    yaxis_title="꽃잎 너비 (cm)",
-    legend_title="붓꽃 품종"
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-st.caption(
-    "⭐ 하늘색 별은 사용자가 입력한 꽃의 위치야."
-)
-
-# ---------------------------------
-# 8. 데이터 안내
-# ---------------------------------
-with st.expander("📚 붓꽃 데이터 자세히 보기"):
-    st.dataframe(df, use_container_width=True)
 
     st.write("전체 데이터 개수:", len(df))
-    st.write("붓꽃 품종:", df["품종"].unique().tolist())
 
-    st.write("꽃잎 길이 범위:", length_min, "~", length_max)
-    st.write("꽃잎 너비 범위:", width_min, "~", width_max)
+    st.write(
+        "품종 종류:",
+        df[target].unique().tolist()
+    )
 
-st.divider()
-
-st.caption("🌸 Iris 데이터 기반 머신러닝 품종 예측 프로그램")
+st.caption(
+    "🌸 Iris 데이터 기반 붓꽃 품종 머신러닝 예측 프로그램"
+)
